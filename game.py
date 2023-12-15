@@ -51,6 +51,7 @@ cell_height = height // n_cells_y
 
 # Game state
 game_state = np.random.choice([0, 1], size=(n_cells_x, n_cells_y), p=[0.8, 0.2])
+save_state = np.copy(game_state)
 
 # Colors
 white = (255, 255, 255)
@@ -58,16 +59,6 @@ black = (0, 0, 0)
 gray = (128, 128, 128)
 green = (0, 255, 0)
 
-# Button dimensions
-button_width, button_height = 200, 50
-button_x, button_y = (width - button_width) // 2, height - button_height - 10
-
-def draw_button():
-    pygame.draw.rect(screen, green, (button_x, button_y, button_width, button_height))
-    font = pygame.font.Font(None, 36)
-    text = font.render("Next Generation", True, black)
-    text_rect = text.get_rect(center=(button_x + button_width // 2, button_y + button_height // 2))
-    screen.blit(text, text_rect)
 
 def draw_grid():
     for y in range(0, height, cell_height):
@@ -104,23 +95,85 @@ def draw_cells():
             if game_state[x, y] == 1:
                 pygame.draw.rect(screen, black, cell)
 
+
+def save_game():
+    global game_state
+    global save_state
+    save_state = np.copy(game_state)
+
+
+def load_game():
+    global game_state
+    global save_state
+    game_state = save_state
+
+
+# Buttons class
+
+class Buttons:
+    def __init__(self, b_width, b_height, position_x, position_y, button_name):
+        self.b_width = b_width
+        self.b_height = b_height
+        self.position_x = position_x
+        self.position_y = position_y
+        self.button_name = button_name
+        self.draw_buttons()
+    def draw_buttons(self):
+        pygame.draw.rect(screen, green, (self.position_x, self.position_y, self.b_width, self.b_height))
+        font = pygame.font.Font(None, 36)
+        text = font.render(self.button_name, True, black)
+        text_rect = text.get_rect(center=(self.position_x+self.b_width//2, self.position_y + self.b_height// 2))
+        screen.blit(text, text_rect)
+
+
+def check_event(button):
+    if (button.position_x <= event.pos[0] <= button.position_x + button.b_width and button.position_y <= event.pos[1] <=
+            button.position_y + button.b_height):
+        return True
+    return False
+
+
+# Ticking
+generation_interval, generation_timer, generation_active = 1500, 0, False
+
+
+
 running = True
 while running:
     screen.fill(white)
     draw_grid()
     draw_cells()
-    draw_button()
+    buttonStart=Buttons(120,50,64, 540, "Start")
+    buttonStop = Buttons(120, 50, 248, 540, "Stop")
+    buttonLoad = Buttons(120, 50, 432, 540, "Load")
+    buttonSave = Buttons(120, 50, 616, 540, "Save")
+
     pygame.display.flip()
 
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             running = False
         if event.type == pygame.MOUSEBUTTONDOWN:
-            if button_x <= event.pos[0] <= button_x + button_width and button_y <= event.pos[1] <= button_y + button_height:
+            if check_event(buttonStart):
                 next_generation()
+                generation_active = True
+                generation_timer = pygame.time.get_ticks()
+            elif check_event(buttonStop):
+                generation_active = False
+            elif check_event(buttonLoad):
+                load_game()
+            elif check_event(buttonSave):
+                save_game()
             else:
                 x, y = event.pos[0] // cell_width, event.pos[1] // cell_height
                 game_state[x, y] = not game_state[x, y]
+
+    if generation_active:
+        current_time = pygame.time.get_ticks()
+        if current_time - generation_timer >= generation_interval:
+            next_generation()
+            generation_timer = current_time
+
 
 pygame.quit()
 
