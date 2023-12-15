@@ -36,6 +36,7 @@
 
 import pygame
 import numpy as np
+from abc import ABC, abstractmethod
 
 # Initialize Pygame
 pygame.init()
@@ -66,6 +67,7 @@ def draw_grid():
             cell = pygame.Rect(x, y, cell_width, cell_height)
             pygame.draw.rect(screen, gray, cell, 1)
 
+
 def next_generation():
     global game_state
     new_state = np.copy(game_state)
@@ -73,12 +75,12 @@ def next_generation():
     for y in range(n_cells_y):
         for x in range(n_cells_x):
             n_neighbors = game_state[(x - 1) % n_cells_x, (y - 1) % n_cells_y] + \
-                          game_state[(x)     % n_cells_x, (y - 1) % n_cells_y] + \
+                          game_state[(x) % n_cells_x, (y - 1) % n_cells_y] + \
                           game_state[(x + 1) % n_cells_x, (y - 1) % n_cells_y] + \
-                          game_state[(x - 1) % n_cells_x, (y)     % n_cells_y] + \
-                          game_state[(x + 1) % n_cells_x, (y)     % n_cells_y] + \
+                          game_state[(x - 1) % n_cells_x, (y) % n_cells_y] + \
+                          game_state[(x + 1) % n_cells_x, (y) % n_cells_y] + \
                           game_state[(x - 1) % n_cells_x, (y + 1) % n_cells_y] + \
-                          game_state[(x)     % n_cells_x, (y + 1) % n_cells_y] + \
+                          game_state[(x) % n_cells_x, (y + 1) % n_cells_y] + \
                           game_state[(x + 1) % n_cells_x, (y + 1) % n_cells_y]
 
             if game_state[x, y] == 1 and (n_neighbors < 2 or n_neighbors > 3):
@@ -87,6 +89,7 @@ def next_generation():
                 new_state[x, y] = 1
 
     game_state = new_state
+
 
 def draw_cells():
     for y in range(n_cells_y):
@@ -108,42 +111,52 @@ def load_game():
     game_state = save_state
 
 
-# Buttons class
+# Define abstract class for elements in game
 
-class Buttons:
+class AbstractGameElement(ABC):
+    def __init__(self, position_x, position_y):
+        self.position_x = position_x
+        self.position_y = position_y
+
+    @abstractmethod
+    def draw(self):
+        pass
+
+
+class Buttons(AbstractGameElement):
     def __init__(self, b_width, b_height, position_x, position_y, button_name):
+        super().__init__(position_x, position_y)
         self.b_width = b_width
         self.b_height = b_height
         self.position_x = position_x
         self.position_y = position_y
         self.button_name = button_name
-        self.draw_buttons()
-    def draw_buttons(self):
+        self.draw()
+
+    def draw(self):
         pygame.draw.rect(screen, green, (self.position_x, self.position_y, self.b_width, self.b_height))
         font = pygame.font.Font(None, 36)
         text = font.render(self.button_name, True, black)
-        text_rect = text.get_rect(center=(self.position_x+self.b_width//2, self.position_y + self.b_height// 2))
+        text_rect = text.get_rect(center=(self.position_x + self.b_width // 2, self.position_y + self.b_height // 2))
         screen.blit(text, text_rect)
 
+    def check_event(self):
+        if (self.position_x <= event.pos[0] <= self.position_x + self.b_width and self.position_y <= event.pos[1] <=
+                self.position_y + self.b_height):
+            return True
+        return False
 
-def check_event(button):
-    if (button.position_x <= event.pos[0] <= button.position_x + button.b_width and button.position_y <= event.pos[1] <=
-            button.position_y + button.b_height):
-        return True
-    return False
 
 
 # Ticking
 generation_interval, generation_timer, generation_active = 1500, 0, False
-
-
 
 running = True
 while running:
     screen.fill(white)
     draw_grid()
     draw_cells()
-    buttonStart=Buttons(120,50,64, 540, "Start")
+    buttonStart = Buttons(120, 50, 64, 540, "Start")
     buttonStop = Buttons(120, 50, 248, 540, "Stop")
     buttonLoad = Buttons(120, 50, 432, 540, "Load")
     buttonSave = Buttons(120, 50, 616, 540, "Save")
@@ -154,15 +167,15 @@ while running:
         if event.type == pygame.QUIT:
             running = False
         if event.type == pygame.MOUSEBUTTONDOWN:
-            if check_event(buttonStart):
+            if buttonStart.check_event():
                 next_generation()
                 generation_active = True
                 generation_timer = pygame.time.get_ticks()
-            elif check_event(buttonStop):
+            elif buttonStop.check_event():
                 generation_active = False
-            elif check_event(buttonLoad):
+            elif buttonLoad.check_event():
                 load_game()
-            elif check_event(buttonSave):
+            elif buttonSave.check_event():
                 save_game()
             else:
                 x, y = event.pos[0] // cell_width, event.pos[1] // cell_height
@@ -174,6 +187,4 @@ while running:
             next_generation()
             generation_timer = current_time
 
-
 pygame.quit()
-
